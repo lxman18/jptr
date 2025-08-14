@@ -292,7 +292,15 @@ function convertFile() {
         let val = '';
         if (header === 'AP Ref #') val = row['Invoice: AP Ref No'] || '';
         else if (header === 'PO Number') val = row['OCR PO Number'] || '';
-        else if (header === 'Created date aging') val = invDate ? Math.floor((Date.now() - invDate.getTime()) / (1000 * 60 * 60 * 24)) : '';
+        else if (header === 'Created date aging') {
+    if (invDate) {
+        const diffDays = Math.floor((Date.now() - invDate.getTime()) / (1000 * 60 * 60 * 24));
+        val = diffDays;
+    } else {
+        val = '';
+    }
+}
+        //else if (header === 'Created date aging') val = invDate ? Math.floor((Date.now() - invDate.getTime()) / (1000 * 60 * 60 * 24)) : '';//
         else if (header === 'Created date aging AH') val = invDate ? getAgingLabel(Math.floor((Date.now() - invDate.getTime()) / (1000 * 60 * 60 * 24))) : '';
         else if (header === 'Current State assigned date') val = assignDate ? getWorkingDays(assignDate, new Date()) : '';
         else if (header === 'Current state assigned date aging AH') val = assignDate ? getAgingLabel(getWorkingDays(assignDate, new Date())) : '';
