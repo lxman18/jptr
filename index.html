@@ -6,7 +6,7 @@
   <title>Jupiter Allocation</title>
   <link href="https://fonts.googleapis.com/css?family=Material+Icons|Material+Icons+Outlined" rel="stylesheet">
   <style>
-    /* Same CSS as original */
+    /* Same CSS as previous */
     body {
       font-family: Arial, sans-serif;
       margin: 0;
@@ -173,7 +173,6 @@
     <div id="successAnimation" class="success-animation">✅ Success!</div>
   </main>
 
-  <!-- Use full SheetJS library -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
   function formatDate(date) {
@@ -188,15 +187,43 @@
 
   function parseDateFromCell(value) {
     if (!value) return null;
+    
+    // Handle Excel serial number dates
     if (typeof value === 'number') {
       const dateParts = XLSX.SSF.parse_date_code(value);
-      if (!dateParts) return null;
-      return new Date(dateParts.y, dateParts.m - 1, dateParts.d, dateParts.H || 0, dateParts.M || 0, dateParts.S || 0);
+      if (dateParts) {
+        return new Date(dateParts.y, dateParts.m - 1, dateParts.d, dateParts.H || 0, dateParts.M || 0, dateParts.S || 0);
+      }
     }
+    
+    // Handle string dates with multiple formats
     if (typeof value === 'string') {
-      const date = new Date(value);
-      if (!isNaN(date.getTime())) return date;
+      const formats = [
+        'YYYY-MM-DD',
+        'MM/DD/YYYY',
+        'DD-MM-YYYY',
+        'YYYY/MM/DD',
+        'DD/MM/YYYY',
+        'M/D/YYYY',
+        'D/M/YYYY',
+        'YYYY-MM-DD HH:mm:ss',
+        'MM/DD/YYYY HH:mm:ss'
+      ];
+      for (let format of formats) {
+        const parsed = new Date(value.replace(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/, '$3-$1-$2'));
+        if (!isNaN(parsed.getTime())) return parsed;
+      }
+      
+      // Try direct parsing as a fallback
+      const directParsed = new Date(value);
+      if (!isNaN(directParsed.getTime())) return directParsed;
     }
+    
+    // Handle Date objects (if cellDates: true)
+    if (value instanceof Date && !isNaN(value.getTime())) {
+      return value;
+    }
+    
     return null;
   }
 
@@ -248,7 +275,6 @@
     const progressContainer = document.querySelector('.progress-container');
     const progressBar = document.getElementById('progressBar');
 
-    // Check file size (20 MB = 20 * 1024 * 1024 bytes)
     if (file.size > 20 * 1024 * 1024) {
       logDiv.textContent = '❌ File size exceeds 20 MB limit. Please use a smaller file.\n';
       return;
@@ -272,25 +298,29 @@
     ];
 
     try {
-      // Read file
       const reader = new FileReader();
       const fileData = await new Promise((resolve) => {
         reader.onload = (e) => resolve(e.target.result);
         reader.readAsBinaryString(file);
       });
 
-      // Use raw and cellDates for better date handling
       const workbook = XLSX.read(fileData, { type: 'binary', raw: true, cellDates: true });
       const inputSheet = workbook.Sheets[workbook.SheetNames[0]];
 
-      // Get headers
+      // Log headers for debugging
       const headerRow = XLSX.utils.sheet_to_json(inputSheet, { header: 1 })[0];
+      logDiv.textContent += `Input headers: ${JSON.stringify(headerRow)}\n`;
       const inputHeaderMap = {};
       headerRow.forEach((header, index) => {
         if (header) inputHeaderMap[header.trim()] = index;
       });
 
-      // Process Values sheet
+      // Check if Invoice: Created Date exists
+      if (!inputHeaderMap["Invoice: Created Date"]) {
+        logDiv.textContent += '❌ Error: "Invoice: Created Date" column not found in input file.\n';
+        throw new Error("Invoice: Created Date column missing");
+      }
+
       const coraStatusToOwner = {};
       const valuesSheet = workbook.Sheets['Values'];
       if (valuesSheet) {
@@ -311,20 +341,18 @@
             if (coraStatus && owner) coraStatusToOwner[coraStatus] = owner;
           }
         }
-        // Clear valuesData to free memory
         valuesData.length = 0;
       }
 
-      // Initialize output workbook
       const outputWorkbook = XLSX.utils.book_new();
       const outputSheet = XLSX.utils.json_to_sheet([desiredHeaders], { skipHeader: true });
       XLSX.utils.book_append_sheet(outputWorkbook, outputSheet, "AllocationTracker");
 
-      // Process rows in smaller chunks
       const inputData = XLSX.utils.sheet_to_json(inputSheet, { header: 1 }).slice(1);
       const totalRows = inputData.length;
-      const chunkSize = 100; // Reduced for 100,000 rows
+      const chunkSize = 100;
       let processedRows = 0;
+      let dateParseFailures = 0;
 
       async function processChunk(startIndex) {
         const endIndex = Math.min(startIndex + chunkSize, totalRows);
@@ -420,40 +448,51 @@
 
             const colIndex = inputHeaderMap[inputHeaderKey];
             outputRow[header] = colIndex !== undefined ? inputRow[colIndex] ?? null : null;
+
+            // Debug date parsing issues
+            if (header === "Invoice: Created Date" && outputRow[header]) {
+              const parsedDate = parseDateFromCell(outputRow[header]);
+              if (!parsedDate) {
+                dateParseFailures++;
+                if (dateParseFailures <= 5) { // Limit logs to avoid overload
+                  logDiv.textContent += `⚠️ Failed to parse date: "${outputRow[header]}" in row ${i + 2}\n`;
+                }
+              }
+            }
           });
 
           chunkData.push(outputRow);
           processedRows++;
         }
 
-        // Append chunk to sheet
         XLSX.utils.sheet_add_json(outputSheet, chunkData, { skipHeader: true, origin: -1 });
 
-        // Update progress
         const percent = Math.round((processedRows / totalRows) * 100);
         progressBar.style.width = percent + "%";
         progressBar.textContent = percent + "%";
 
         if (processedRows % 10000 === 0 || processedRows === totalRows) {
           logDiv.textContent += `Processed ${processedRows} / ${totalRows} rows...\n`;
+          if (dateParseFailures > 0) {
+            logDiv.textContent += `⚠️ ${dateParseFailures} date parsing failures so far\n`;
+          }
           logDiv.scrollTop = logDiv.scrollHeight;
         }
 
-        // Clear chunk data
         chunkData.length = 0;
 
         if (endIndex < totalRows) {
-          // Process next chunk after a short delay
           setTimeout(() => processChunk(endIndex), 10);
         } else {
-          // Clear input data
           inputData.length = 0;
           await finalize();
         }
       }
 
       async function finalize() {
-        // Generate downloadable file
+        if (dateParseFailures > 0) {
+          logDiv.textContent += `⚠️ Total date parsing failures: ${dateParseFailures}\n`;
+        }
         const timestamp = formatDate(new Date());
         const outputFileName = `Processed_File_${timestamp}.xlsx`;
         const wbout = XLSX.write(outputWorkbook, { bookType: 'xlsx', type: 'array', compression: true });
