@@ -225,8 +225,6 @@
   function getWorkingDays(start, end) {
     let startCal = new Date(start);
     let endCal = new Date(end);
-    startCal.setHours(0, 0, 0, 0);
-    endCal.setHours(0, 0, 0, 0);
     let workDays = 0;
     while (startCal <= endCal) {
       const day = startCal.getDay();
@@ -373,11 +371,15 @@
               return;
             }
             if (header === "Current State assigned date" && assignDate) {
-              outputRow[header] = getWorkingDays(assignDate, new Date());
+              const normalizedAssignDate = normalizeDate(assignDate);
+              const normalizedToday = normalizeDate(new Date());
+              outputRow[header] = getWorkingDays(normalizedAssignDate, normalizedToday);
               return;
             }
             if (header === "Current state assigned date aging AH" && assignDate) {
-              outputRow[header] = getAgingLabel(getWorkingDays(assignDate, new Date()));
+              const normalizedAssignDate = normalizeDate(assignDate);
+              const normalizedToday = normalizeDate(new Date());
+              outputRow[header] = getAgingLabel(getWorkingDays(normalizedAssignDate, normalizedToday));
               return;
             }
             if (header === "Overdue/Neardue") {
@@ -429,7 +431,7 @@
             if (header === "Inflow Type") {
               let inflowType = "";
               const createdAging = invoiceDate ? Math.floor((new Date() - invoiceDate) / (1000 * 60 * 60 * 24)) : null;
-              const assignWorkingDays = assignDate ? getWorkingDays(assignDate, new Date()) : null;
+              const assignWorkingDays = assignDate ? getWorkingDays(normalizeDate(assignDate), normalizeDate(new Date())) : null;
               if (createdAging !== null) {
                 if (createdAging <= 1) inflowType = "Fresh";
                 else if (createdAging > 1 && assignWorkingDays !== null) {
