@@ -180,7 +180,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.mini.min.js"></script>
 
   <script>
-    function formatDate(date) {
+     function formatDate(date) {
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
@@ -198,8 +198,12 @@
         return new Date(dateParts.y, dateParts.m - 1, dateParts.d, dateParts.H || 0, dateParts.M || 0, dateParts.S || 0);
       }
       if (typeof value === 'string') {
-        const date = new Date(value);
-        if (!isNaN(date.getTime())) return date;
+        try {
+          const date = new Date(value);
+          if (!isNaN(date.getTime())) return date;
+        } catch (e) {
+          return null;
+        }
       }
       return null;
     }
@@ -210,7 +214,9 @@
       let workDays = 0;
       while (startCal <= endCal) {
         const day = startCal.getDay();
-        if (day !== 0 && day !== 6) workDays++;
+        if (day !== 0 && day !== 6) {
+          workDays++;
+        }
         startCal.setDate(startCal.getDate() + 1);
       }
       return Math.max(workDays - 1, 0);
@@ -249,17 +255,9 @@
       const logDiv = document.getElementById('log');
       const successAnimation = document.getElementById('successAnimation');
       const processingScene = document.getElementById('processingScene');
-      const progressContainer = document.querySelector(".progress-container");
-      const progressBar = document.getElementById("progressBar");
-
       logDiv.textContent = 'Processing file...\n';
       processingScene.classList.add('active');
-      stars();
-
-      // Reset and show progress bar
-      progressContainer.style.display = "block";
-      progressBar.style.width = "0%";
-      progressBar.textContent = "0%";
+      stars(); // Initialize star animation
 
       const desiredHeaders = [
         "Country", "AP Ref #", "Input Source", "Current State", "Work Type",
@@ -272,26 +270,22 @@
       ];
 
       try {
+        // Read the uploaded file
         const reader = new FileReader();
         const fileData = await new Promise((resolve) => {
-          reader.onload = (e) => resolve(new Uint8Array(e.target.result));
-          reader.readAsArrayBuffer(file);
+          reader.onload = (e) => resolve(e.target.result);
+          reader.readAsBinaryString(file);
         });
 
-        const workbook = XLSX.read(fileData, { type: 'array' });
+        const workbook = XLSX.read(fileData, { type: 'binary' });
         const inputSheet = workbook.Sheets[workbook.SheetNames[0]];
 
-        // Build input header map
-        const range = XLSX.utils.decode_range(inputSheet["!ref"]);
+        const headerRow = XLSX.utils.sheet_to_json(inputSheet, { header: 1 })[0];
         const inputHeaderMap = {};
-        for (let C = range.s.c; C <= range.e.c; ++C) {
-          const cell = inputSheet[XLSX.utils.encode_cell({ r: range.s.r, c: C })];
-          if (cell && cell.v) {
-            inputHeaderMap[cell.v.toString().trim()] = C;
-          }
-        }
+        headerRow.forEach((header, index) => {
+          inputHeaderMap[header.trim()] = index;
+        });
 
-        // Load mapping sheet
         const valuesSheet = workbook.Sheets['Values'];
         const coraStatusToOwner = {};
         if (valuesSheet) {
@@ -303,51 +297,132 @@
           });
           const coraStatusCol = valHeaderMap['Cora Status'];
           const ownerCol = valHeaderMap['Owner'];
-          for (let r = 1; r < valuesData.length; r++) {
-            const row = valuesData[r];
-            if (!row) continue;
-            const coraStatus = row[coraStatusCol]?.toString().trim();
-            const owner = row[ownerCol]?.toString().trim();
-            if (coraStatus && owner) coraStatusToOwner[coraStatus] = owner;
+          if (coraStatusCol !== undefined && ownerCol !== undefined) {
+            for (let r = 1; r < valuesData.length; r++) {
+              const row = valuesData[r];
+              if (!row) continue;
+              const coraStatus = row[coraStatusCol]?.toString().trim();
+              const owner = row[ownerCol]?.toString().trim();
+              if (coraStatus && owner) {
+                coraStatusToOwner[coraStatus] = owner;
+              }
+            }
           }
         }
 
         const outputSheetData = [desiredHeaders];
-        const totalRows = range.e.r - range.s.r;
-        let processedRows = 0;
+        const inputData = XLSX.utils.sheet_to_json(inputSheet, { header: 1 }).slice(1);
 
-        // Process rows with progress updates
-        for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-          processedRows++;
-          const rowValues = {};
-          for (const key in inputHeaderMap) {
-            const C = inputHeaderMap[key];
-            const cell = inputSheet[XLSX.utils.encode_cell({ r: R, c: C })];
-            rowValues[key] = cell ? cell.v : null;
-          }
-
+        inputData.forEach((inputRow) => {
+          if (!inputRow) return;
           const outputRow = new Array(desiredHeaders.length).fill(null);
 
-          // ---- Existing header logic (shortened for brevity, keep from previous version) ----
-          // Copy your full header-based assignment code here (unchanged)
-          // -------------------------------------------------------------------------------
+          desiredHeaders.forEach((header, j) => {
+            const inputHeaderKey = header === "AP Ref #" ? "Invoice: AP Ref No" :
+                                  header === "PO Number" ? "OCR PO Number" : header;
+
+            const invoiceDate = parseDateFromCell(inputRow[inputHeaderMap["Invoice: Created Date"]]);
+            const assignDate = parseDateFromCell(inputRow[inputHeaderMap["Current State Assign Date"]]);
+
+            if (header === "Created date aging" && invoiceDate) {
+              const diffDays = Math.floor((new Date() - invoiceDate) / (1000 * 60 * 60 * 24));
+              outputRow[j] = diffDays;
+              return;
+            }
+            if (header === "Created date aging AH" && invoiceDate) {
+              const diffDays = Math.floor((new Date() - invoiceDate) / (1000 * 60 * 60 * 24));
+              outputRow[j] = getAgingLabel(diffDays);
+              return;
+            }
+            if (header === "Current State assigned date" && assignDate) {
+              outputRow[j] = getWorkingDays(assignDate, new Date());
+              return;
+            }
+            if (header === "Current state assigned date aging AH" && assignDate) {
+              const workingDays = getWorkingDays(assignDate, new Date());
+              outputRow[j] = getAgingLabel(workingDays);
+              return;
+            }
+            if (header === "Overdue/Neardue") {
+              const dueDate = parseDateFromCell(inputRow[inputHeaderMap["Invoice Due Date"]]);
+              if (!dueDate) {
+                outputRow[j] = "Due date not captured";
+              } else {
+                const today = normalizeDate(new Date());
+                const cal = new Date(today);
+                const day = cal.getDay();
+                const daysToFriday = 5 - day < 0 ? 5 - day + 7 : 5 - day;
+                cal.setDate(cal.getDate() + daysToFriday);
+                const thisFriday = normalizeDate(cal);
+                cal.setDate(cal.getDate() + 8);
+                const nextSaturday = normalizeDate(cal);
+                const normalizedDueDate = normalizeDate(dueDate);
+
+                if (normalizedDueDate <= thisFriday) {
+                  outputRow[j] = "Overdue";
+                } else if (normalizedDueDate <= nextSaturday) {
+                  outputRow[j] = "Neardue";
+                } else {
+                  outputRow[j] = "Future due";
+                }
+              }
+              return;
+            }
+            if (header === "AMT in MN") {
+              const amt = inputRow[inputHeaderMap["Converted Invoice Total Amount"]];
+              const value = typeof amt === 'number' ? amt : parseFloat(amt) || 0;
+              outputRow[j] = Math.round((value / 1000000.0) * 10000.0) / 10000.0;
+              return;
+            }
+            if (header === "Ownership") {
+              const currentState = inputRow[inputHeaderMap["Current State"]]?.toString().trim() || "";
+              outputRow[j] = coraStatusToOwner[currentState] || "";
+              return;
+            }
+            if (header === "Status") {
+              const currentState = inputRow[inputHeaderMap["Current State"]]?.toString().trim() || "";
+              const commentHistory = inputRow[inputHeaderMap["Comment History"]]?.toString().trim() || "";
+              const owner = coraStatusToOwner[currentState] || "";
+
+              if (commentHistory.includes("Payment feed received")) {
+                outputRow[j] = "Payment feed received but Mandatory field data missing - Need to close the workflow in CORA";
+              } else if (owner.toLowerCase() !== "genpact") {
+                outputRow[j] = "-";
+              } else if (["Awaiting Credit Note", "Pending For Supplier Credit Note", "Pending Response From Supplier"].includes(currentState)) {
+                outputRow[j] = "Awaiting credit note from the supplier";
+              } else {
+                outputRow[j] = "Ready for TL Validation";
+              }
+              return;
+            }
+            if (header === "Inflow Type") {
+              let inflowType = "";
+              const createdAging = invoiceDate ? Math.floor((new Date() - invoiceDate) / (1000 * 60 * 60 * 24)) : null;
+              const assignWorkingDays = assignDate ? getWorkingDays(assignDate, new Date()) : null;
+              if (createdAging !== null) {
+                if (createdAging <= 1) inflowType = "Fresh";
+                else if (createdAging > 1 && assignWorkingDays !== null) {
+                  inflowType = assignWorkingDays <= 1 ? "Comeback Fresh" : "Comeback Backlog";
+                }
+              }
+              outputRow[j] = inflowType;
+              return;
+            }
+
+            const colIndex = inputHeaderMap[inputHeaderKey];
+            if (colIndex !== undefined) {
+              outputRow[j] = inputRow[colIndex] ?? null;
+            }
+          });
 
           outputSheetData.push(outputRow);
+        });
 
-          // Update progress bar every 500 rows
-          if (processedRows % 500 === 0 || R === range.e.r) {
-            const percent = Math.round((processedRows / totalRows) * 100);
-            progressBar.style.width = percent + "%";
-            progressBar.textContent = percent + "%";
-            await new Promise(res => setTimeout(res, 0));
-          }
-        }
-
-        // Finalize file
         const outputWorkbook = XLSX.utils.book_new();
         const outputSheet = XLSX.utils.aoa_to_sheet(outputSheetData);
         XLSX.utils.book_append_sheet(outputWorkbook, outputSheet, "AllocationTracker");
 
+        // Generate downloadable file
         const timestamp = formatDate(new Date());
         const outputFileName = `Processed_File_${timestamp}.xlsx`;
         const wbout = XLSX.write(outputWorkbook, { bookType: 'xlsx', type: 'array' });
@@ -361,15 +436,13 @@
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
 
+        // Hide processing animation and show success animation
         processingScene.classList.remove('active');
         successAnimation.style.display = 'block';
-        setTimeout(() => { successAnimation.style.display = 'none'; }, 2500);
+        setTimeout(() => {
+          successAnimation.style.display = 'none';
+        }, 2500); // Hide after animation completes
         logDiv.textContent += `✅ Output file generated: ${outputFileName}\n`;
-
-        // Ensure progress bar shows 100%
-        progressBar.style.width = "100%";
-        progressBar.textContent = "100%";
-
       } catch (err) {
         processingScene.classList.remove('active');
         logDiv.textContent += `❌ Error: ${err.message}\n`;
@@ -378,7 +451,9 @@
 
     document.getElementById('inputFile').addEventListener('change', (event) => {
       const file = event.target.files[0];
-      if (file) processExcel(file);
+      if (file) {
+        processExcel(file);
+      }
     });
   </script>
 </body>
