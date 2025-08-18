@@ -6,7 +6,6 @@
   <title>Jupiter Allocation</title>
   <link href="https://fonts.googleapis.com/css?family=Material+Icons|Material+Icons+Outlined" rel="stylesheet">
   <style>
-    /* Same CSS as previous */
     body {
       font-family: Arial, sans-serif;
       margin: 0;
@@ -188,7 +187,6 @@
   function parseDateFromCell(value) {
     if (!value) return null;
     
-    // Handle Excel serial number dates
     if (typeof value === 'number') {
       const dateParts = XLSX.SSF.parse_date_code(value);
       if (dateParts) {
@@ -196,7 +194,6 @@
       }
     }
     
-    // Handle string dates with multiple formats
     if (typeof value === 'string') {
       const formats = [
         'YYYY-MM-DD',
@@ -214,12 +211,10 @@
         if (!isNaN(parsed.getTime())) return parsed;
       }
       
-      // Try direct parsing as a fallback
       const directParsed = new Date(value);
       if (!isNaN(directParsed.getTime())) return directParsed;
     }
     
-    // Handle Date objects (if cellDates: true)
     if (value instanceof Date && !isNaN(value.getTime())) {
       return value;
     }
@@ -230,6 +225,8 @@
   function getWorkingDays(start, end) {
     let startCal = new Date(start);
     let endCal = new Date(end);
+    startCal.setHours(0, 0, 0, 0);
+    endCal.setHours(0, 0, 0, 0);
     let workDays = 0;
     while (startCal <= endCal) {
       const day = startCal.getDay();
@@ -307,15 +304,12 @@
       const workbook = XLSX.read(fileData, { type: 'binary', raw: true, cellDates: true });
       const inputSheet = workbook.Sheets[workbook.SheetNames[0]];
 
-      // Log headers for debugging
       const headerRow = XLSX.utils.sheet_to_json(inputSheet, { header: 1 })[0];
-     // logDiv.textContent += `Input headers: ${JSON.stringify(headerRow)}\n`;
       const inputHeaderMap = {};
       headerRow.forEach((header, index) => {
         if (header) inputHeaderMap[header.trim()] = index;
       });
 
-      // Check if Invoice: Created Date exists
       if (!inputHeaderMap["Invoice: Created Date"]) {
         logDiv.textContent += '❌ Error: "Invoice: Created Date" column not found in input file.\n';
         throw new Error("Invoice: Created Date column missing");
@@ -449,12 +443,11 @@
             const colIndex = inputHeaderMap[inputHeaderKey];
             outputRow[header] = colIndex !== undefined ? inputRow[colIndex] ?? null : null;
 
-            // Debug date parsing issues
             if (header === "Invoice: Created Date" && outputRow[header]) {
               const parsedDate = parseDateFromCell(outputRow[header]);
               if (!parsedDate) {
                 dateParseFailures++;
-                if (dateParseFailures <= 5) { // Limit logs to avoid overload
+                if (dateParseFailures <= 5) {
                   logDiv.textContent += `⚠️ Failed to parse date: "${outputRow[header]}" in row ${i + 2}\n`;
                 }
               }
