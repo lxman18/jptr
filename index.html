@@ -178,143 +178,151 @@
 
   <!-- ⚡ Using the lightweight SheetJS build -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.mini.min.js"></script>
-
   <script>
-     function formatDate(date) {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      const seconds = String(date.getSeconds()).padStart(2, '0');
-      return `${year}${month}${day}_${hours}${minutes}${seconds}`;
-    }
+  function formatDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${year}${month}${day}_${hours}${minutes}${seconds}`;
+  }
 
-    function parseDateFromCell(value) {
-      if (!value) return null;
-      if (typeof value === 'number') {
-        const dateParts = XLSX.SSF.parse_date_code(value);
-        if (!dateParts) return null;
-        return new Date(dateParts.y, dateParts.m - 1, dateParts.d, dateParts.H || 0, dateParts.M || 0, dateParts.S || 0);
+  function parseDateFromCell(value) {
+    if (!value) return null;
+    if (typeof value === 'number') {
+      const dateParts = XLSX.SSF.parse_date_code(value);
+      if (!dateParts) return null;
+      return new Date(dateParts.y, dateParts.m - 1, dateParts.d, dateParts.H || 0, dateParts.M || 0, dateParts.S || 0);
+    }
+    if (typeof value === 'string') {
+      const date = new Date(value);
+      if (!isNaN(date.getTime())) return date;
+    }
+    return null;
+  }
+
+  function getWorkingDays(start, end) {
+    let startCal = new Date(start);
+    let endCal = new Date(end);
+    let workDays = 0;
+    while (startCal <= endCal) {
+      const day = startCal.getDay();
+      if (day !== 0 && day !== 6) {
+        workDays++;
       }
-      if (typeof value === 'string') {
-        try {
-          const date = new Date(value);
-          if (!isNaN(date.getTime())) return date;
-        } catch (e) {
-          return null;
-        }
-      }
-      return null;
+      startCal.setDate(startCal.getDate() + 1);
     }
+    return Math.max(workDays - 1, 0);
+  }
 
-    function getWorkingDays(start, end) {
-      let startCal = new Date(start);
-      let endCal = new Date(end);
-      let workDays = 0;
-      while (startCal <= endCal) {
-        const day = startCal.getDay();
-        if (day !== 0 && day !== 6) {
-          workDays++;
-        }
-        startCal.setDate(startCal.getDate() + 1);
-      }
-      return Math.max(workDays - 1, 0);
+  function getAgingLabel(days) {
+    if (days <= 1) return "0 - 1 day";
+    if (days <= 3) return "2 - 3 days";
+    if (days <= 5) return "4 - 5 days";
+    return "Above 5 days";
+  }
+
+  function normalizeDate(date) {
+    const cal = new Date(date);
+    cal.setHours(0, 0, 0, 0);
+    return cal;
+  }
+
+  function stars() {
+    let scene = document.querySelector(".scene");
+    let count = 20;
+    for (let i = 0; i <= count; i++) {
+      let star = document.createElement("i");
+      let x = Math.floor(Math.random() * window.innerWidth);
+      let duration = Math.random() * 1 + 0.5;
+      let h = Math.random() * 100;
+      star.style.left = x + "px";
+      star.style.width = 1 + "px";
+      star.style.height = h + "px";
+      star.style.animationDuration = duration + "s";
+      scene.appendChild(star);
     }
+  }
 
-    function getAgingLabel(days) {
-      if (days <= 1) return "0 - 1 day";
-      if (days <= 3) return "2 - 3 days";
-      if (days <= 5) return "4 - 5 days";
-      return "Above 5 days";
-    }
+  async function processExcel(file) {
+    const logDiv = document.getElementById('log');
+    const successAnimation = document.getElementById('successAnimation');
+    const processingScene = document.getElementById('processingScene');
+    const progressContainer = document.querySelector('.progress-container');
+    const progressBar = document.getElementById('progressBar');
 
-    function normalizeDate(date) {
-      const cal = new Date(date);
-      cal.setHours(0, 0, 0, 0);
-      return cal;
-    }
+    logDiv.textContent = 'Processing file...\n';
+    processingScene.classList.add('active');
+    stars(); // Rocket stars
+    progressContainer.style.display = "block"; // Show progress bar
+    progressBar.style.width = "0%";
+    progressBar.textContent = "0%";
 
-    function stars() {
-      let scene = document.querySelector(".scene");
-      let count = 20;
-      for (let i = 0; i <= count; i++) {
-        let star = document.createElement("i");
-        let x = Math.floor(Math.random() * window.innerWidth);
-        let duration = Math.random() * 1 + 0.5;
-        let h = Math.random() * 100;
-        star.style.left = x + "px";
-        star.style.width = 1 + "px";
-        star.style.height = h + "px";
-        star.style.animationDuration = duration + "s";
-        scene.appendChild(star);
-      }
-    }
+    const desiredHeaders = [
+      "Country", "AP Ref #", "Input Source", "Current State", "Work Type",
+      "Exception Reason", "Document Type", "Currency", "Invoice No", "Supplier Name",
+      "Supplier Number", "PO Number", "Invoice: Created Date", "Current Owner",
+      "Previous State", "Comment History", "Company Code", "Current State Assign Date", "Invoice Due Date",
+      "Created date aging", "Created date aging AH", "Current State assigned date",
+      "Current state assigned date aging AH", "Overdue/Neardue", "Inflow Type",
+      "Total Amount", "Converted Invoice Total Amount", "AMT in MN", "Ownership", "Status"
+    ];
 
-    async function processExcel(file) {
-      const logDiv = document.getElementById('log');
-      const successAnimation = document.getElementById('successAnimation');
-      const processingScene = document.getElementById('processingScene');
-      logDiv.textContent = 'Processing file...\n';
-      processingScene.classList.add('active');
-      stars(); // Initialize star animation
+    try {
+      // Read the uploaded file
+      const reader = new FileReader();
+      const fileData = await new Promise((resolve) => {
+        reader.onload = (e) => resolve(e.target.result);
+        reader.readAsBinaryString(file);
+      });
 
-      const desiredHeaders = [
-        "Country", "AP Ref #", "Input Source", "Current State", "Work Type",
-        "Exception Reason", "Document Type", "Currency", "Invoice No", "Supplier Name",
-        "Supplier Number", "PO Number", "Invoice: Created Date", "Current Owner",
-        "Previous State", "Comment History", "Company Code", "Current State Assign Date", "Invoice Due Date",
-        "Created date aging", "Created date aging AH", "Current State assigned date",
-        "Current state assigned date aging AH", "Overdue/Neardue", "Inflow Type",
-        "Total Amount", "Converted Invoice Total Amount", "AMT in MN", "Ownership", "Status"
-      ];
+      const workbook = XLSX.read(fileData, { type: 'binary' });
+      const inputSheet = workbook.Sheets[workbook.SheetNames[0]];
 
-      try {
-        // Read the uploaded file
-        const reader = new FileReader();
-        const fileData = await new Promise((resolve) => {
-          reader.onload = (e) => resolve(e.target.result);
-          reader.readAsBinaryString(file);
+      const headerRow = XLSX.utils.sheet_to_json(inputSheet, { header: 1 })[0];
+      const inputHeaderMap = {};
+      headerRow.forEach((header, index) => {
+        inputHeaderMap[header.trim()] = index;
+      });
+
+      const valuesSheet = workbook.Sheets['Values'];
+      const coraStatusToOwner = {};
+      if (valuesSheet) {
+        const valuesData = XLSX.utils.sheet_to_json(valuesSheet, { header: 1 });
+        const valHeaderRow = valuesData[0];
+        const valHeaderMap = {};
+        valHeaderRow.forEach((header, index) => {
+          valHeaderMap[header.trim()] = index;
         });
-
-        const workbook = XLSX.read(fileData, { type: 'binary' });
-        const inputSheet = workbook.Sheets[workbook.SheetNames[0]];
-
-        const headerRow = XLSX.utils.sheet_to_json(inputSheet, { header: 1 })[0];
-        const inputHeaderMap = {};
-        headerRow.forEach((header, index) => {
-          inputHeaderMap[header.trim()] = index;
-        });
-
-        const valuesSheet = workbook.Sheets['Values'];
-        const coraStatusToOwner = {};
-        if (valuesSheet) {
-          const valuesData = XLSX.utils.sheet_to_json(valuesSheet, { header: 1 });
-          const valHeaderRow = valuesData[0];
-          const valHeaderMap = {};
-          valHeaderRow.forEach((header, index) => {
-            valHeaderMap[header.trim()] = index;
-          });
-          const coraStatusCol = valHeaderMap['Cora Status'];
-          const ownerCol = valHeaderMap['Owner'];
-          if (coraStatusCol !== undefined && ownerCol !== undefined) {
-            for (let r = 1; r < valuesData.length; r++) {
-              const row = valuesData[r];
-              if (!row) continue;
-              const coraStatus = row[coraStatusCol]?.toString().trim();
-              const owner = row[ownerCol]?.toString().trim();
-              if (coraStatus && owner) {
-                coraStatusToOwner[coraStatus] = owner;
-              }
+        const coraStatusCol = valHeaderMap['Cora Status'];
+        const ownerCol = valHeaderMap['Owner'];
+        if (coraStatusCol !== undefined && ownerCol !== undefined) {
+          for (let r = 1; r < valuesData.length; r++) {
+            const row = valuesData[r];
+            if (!row) continue;
+            const coraStatus = row[coraStatusCol]?.toString().trim();
+            const owner = row[ownerCol]?.toString().trim();
+            if (coraStatus && owner) {
+              coraStatusToOwner[coraStatus] = owner;
             }
           }
         }
+      }
 
-        const outputSheetData = [desiredHeaders];
-        const inputData = XLSX.utils.sheet_to_json(inputSheet, { header: 1 }).slice(1);
+      const outputSheetData = [desiredHeaders];
+      const inputData = XLSX.utils.sheet_to_json(inputSheet, { header: 1 }).slice(1);
 
-        inputData.forEach((inputRow) => {
-          if (!inputRow) return;
+      const totalRows = inputData.length;
+      let processedRows = 0;
+      const chunkSize = 500; // Process in chunks to avoid UI freeze
+
+      function processChunk(startIndex) {
+        const endIndex = Math.min(startIndex + chunkSize, totalRows);
+        for (let i = startIndex; i < endIndex; i++) {
+          const inputRow = inputData[i];
+          if (!inputRow) continue;
           const outputRow = new Array(desiredHeaders.length).fill(null);
 
           desiredHeaders.forEach((header, j) => {
@@ -416,8 +424,22 @@
           });
 
           outputSheetData.push(outputRow);
-        });
+          processedRows++;
+        }
 
+        // Update progress bar
+        const percent = Math.round((processedRows / totalRows) * 100);
+        progressBar.style.width = percent + "%";
+        progressBar.textContent = percent + "%";
+
+        if (endIndex < totalRows) {
+          setTimeout(() => processChunk(endIndex), 0);
+        } else {
+          finalize();
+        }
+      }
+
+      function finalize() {
         const outputWorkbook = XLSX.utils.book_new();
         const outputSheet = XLSX.utils.aoa_to_sheet(outputSheetData);
         XLSX.utils.book_append_sheet(outputWorkbook, outputSheet, "AllocationTracker");
@@ -436,25 +458,27 @@
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
 
-        // Hide processing animation and show success animation
         processingScene.classList.remove('active');
         successAnimation.style.display = 'block';
         setTimeout(() => {
           successAnimation.style.display = 'none';
-        }, 2500); // Hide after animation completes
+        }, 2500);
         logDiv.textContent += `✅ Output file generated: ${outputFileName}\n`;
-      } catch (err) {
-        processingScene.classList.remove('active');
-        logDiv.textContent += `❌ Error: ${err.message}\n`;
       }
-    }
 
-    document.getElementById('inputFile').addEventListener('change', (event) => {
-      const file = event.target.files[0];
-      if (file) {
-        processExcel(file);
-      }
-    });
-  </script>
+      processChunk(0); // start chunked processing
+    } catch (err) {
+      processingScene.classList.remove('active');
+      logDiv.textContent += `❌ Error: ${err.message}\n`;
+    }
+  }
+
+  document.getElementById('inputFile').addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      processExcel(file);
+    }
+  });
+</script>
 </body>
 </html>
