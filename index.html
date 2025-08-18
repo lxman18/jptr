@@ -432,6 +432,12 @@
         progressBar.style.width = percent + "%";
         progressBar.textContent = percent + "%";
 
+        // Add log updates every 10,000 rows
+        if (processedRows % 10000 === 0 || processedRows === totalRows) {
+          logDiv.textContent += `Processed ${processedRows} / ${totalRows} rows...\n`;
+          logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
         if (endIndex < totalRows) {
           setTimeout(() => processChunk(endIndex), 0);
         } else {
