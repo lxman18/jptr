@@ -102,20 +102,12 @@
       animation: animateStars linear infinite;
     }
     @keyframes animate {
-      0% {
-        transform: translateY(2px);
-      }
-      100% {
-        transform: translateY(-2px);
-      }
+      0% { transform: translateY(2px); }
+      100% { transform: translateY(-2px); }
     }
     @keyframes animateStars {
-      0% {
-        transform: translateY(0);
-      }
-      100% {
-        transform: translateY(200vh);
-      }
+      0% { transform: translateY(0); }
+      100% { transform: translateY(200vh); }
     }
     /* Success Animation */
     .success-animation {
@@ -160,7 +152,9 @@
     <div id="successAnimation" class="success-animation">✅ Success!</div>
   </main>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- ⚡ Using the lightweight SheetJS build -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.mini.min.js"></script>
+
   <script>
     function formatDate(date) {
       const year = date.getFullYear();
@@ -183,9 +177,7 @@
         try {
           const date = new Date(value);
           if (!isNaN(date.getTime())) return date;
-        } catch (e) {
-          return null;
-        }
+        } catch (e) { return null; }
       }
       return null;
     }
@@ -196,9 +188,7 @@
       let workDays = 0;
       while (startCal <= endCal) {
         const day = startCal.getDay();
-        if (day !== 0 && day !== 6) {
-          workDays++;
-        }
+        if (day !== 0 && day !== 6) workDays++;
         startCal.setDate(startCal.getDate() + 1);
       }
       return Math.max(workDays - 1, 0);
@@ -239,7 +229,7 @@
       const processingScene = document.getElementById('processingScene');
       logDiv.textContent = 'Processing file...\n';
       processingScene.classList.add('active');
-      stars(); // Initialize star animation
+      stars();
 
       const desiredHeaders = [
         "Country", "AP Ref #", "Input Source", "Current State", "Work Type",
@@ -252,12 +242,12 @@
       ];
 
       try {
-        // Read the uploaded file
+        // Read file more efficiently using ArrayBuffer
         const reader = new FileReader();
         const fileData = await new Promise((resolve) => {
-  reader.onload = (e) => resolve(new Uint8Array(e.target.result));
-  reader.readAsArrayBuffer(file);
-});
+          reader.onload = (e) => resolve(new Uint8Array(e.target.result));
+          reader.readAsArrayBuffer(file);
+        });
 
         const workbook = XLSX.read(fileData, { type: 'array' });
         const inputSheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -285,9 +275,7 @@
               if (!row) continue;
               const coraStatus = row[coraStatusCol]?.toString().trim();
               const owner = row[ownerCol]?.toString().trim();
-              if (coraStatus && owner) {
-                coraStatusToOwner[coraStatus] = owner;
-              }
+              if (coraStatus && owner) coraStatusToOwner[coraStatus] = owner;
             }
           }
         }
@@ -404,7 +392,6 @@
         const outputSheet = XLSX.utils.aoa_to_sheet(outputSheetData);
         XLSX.utils.book_append_sheet(outputWorkbook, outputSheet, "AllocationTracker");
 
-        // Generate downloadable file
         const timestamp = formatDate(new Date());
         const outputFileName = `Processed_File_${timestamp}.xlsx`;
         const wbout = XLSX.write(outputWorkbook, { bookType: 'xlsx', type: 'array' });
@@ -418,12 +405,9 @@
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
 
-        // Hide processing animation and show success animation
         processingScene.classList.remove('active');
         successAnimation.style.display = 'block';
-        setTimeout(() => {
-          successAnimation.style.display = 'none';
-        }, 2500); // Hide after animation completes
+        setTimeout(() => { successAnimation.style.display = 'none'; }, 2500);
         logDiv.textContent += `✅ Output file generated: ${outputFileName}\n`;
       } catch (err) {
         processingScene.classList.remove('active');
@@ -433,9 +417,7 @@
 
     document.getElementById('inputFile').addEventListener('change', (event) => {
       const file = event.target.files[0];
-      if (file) {
-        processExcel(file);
-      }
+      if (file) processExcel(file);
     });
   </script>
 </body>
