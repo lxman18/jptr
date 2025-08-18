@@ -3,251 +3,205 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Jupiter Allocation Processor</title>
+  <title>Jupiter Allocation</title>
   <link href="https://fonts.googleapis.com/css?family=Material+Icons|Material+Icons+Outlined" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat&display=swap');
     body {
+      font-family: Arial, sans-serif;
       margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: 'Montserrat', sans-serif;
+      background-color: #f4f4f4;
+      overflow-x: hidden;
     }
-    .form-container {
-  width: 100vw;
-  height: 100vh;
-  background: url("image.jpg") no-repeat center center;
-  background-size: cover;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-    .upload-files-container {
-      background-color: #f7fff7;
-      width: 420px;
-      padding: 30px 60px;
-      border-radius: 40px;
-      display: flex;
-
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      box-shadow: rgba(0, 0, 0, 0.24) 20px 30px 20px;
-    }
-    .drag-file-area {
-      border: 2px dashed #7b2cbf;
-      border-radius: 40px;
-      margin: 10px 0 15px;
-      padding: 30px 50px;
-      width: 350px;
+    header {
+      background-color: #4CAF50;
+      color: white;
+      padding: 1rem;
       text-align: center;
-    }
-    .drag-file-area .upload-icon {
-      font-size: 50px;
-    }
-    .drag-file-area h3 {
-      font-size: 26px;
-      margin: 15px 0;
-    }
-    .drag-file-area label {
-      font-size: 19px;
-    }
-    .drag-file-area label .browse-files-text {
-      color: #7b2cbf;
-      font-weight: bolder;
-      cursor: pointer;
-    }
-    .default-file-input {
-      opacity: 0;
-    }
-    .file-block {
-      background-color: #7b2cbf;
-      color: #fff;
-      display: none;
-      justify-content: space-between;
-      align-items: center;
-      margin: 10px 0 15px;
-      padding: 10px 20px;
-      border-radius: 25px;
-      width: 390px;
-    }
-    .file-info {
-      display: flex;
-      align-items: center;
-      font-size: 15px;
-    }
-    .progress-bar {
-      position: absolute;
-      bottom: 0;
-      left: 4.5%;
-      width: 0;
-      height: 5px;
-      background-color: #4BB543;
-      border-radius: 25px;
-    }
-    .upload-button {
-      background-color: #7b2cbf;
-      color: #fff;
-      border: none;
-      border-radius: 20px;
-      font-size: 18px;
-      padding: 7.5px 50px;
-      margin: 10px;
-      cursor: pointer;
-    }
-    .uploaded-button {
-      background-color: #4BB543;
-      cursor: not-allowed;
-    }
-    #status {
-      color: green;
-      font-weight: bold;
-      margin-top: 15px;
-    }
-    #loading-bar {
-      width: 80%;
-      height: 4px;
-      background: #ddd;
-      margin-top: 15px;
-      overflow: hidden;
-      border-radius: 20px;
-      display: none;
       position: relative;
+      z-index: 10;
     }
-    #loading-bar .progress {
-      height: 100%;
-      width: 0%;
-      background: #4BB543;
+    main {
+      padding: 1rem;
+      position: relative;
+      min-height: 100vh;
+      z-index: 5;
     }
-    #loading-percentage {
+    .upload-section {
+      background: white;
+      padding: 2rem;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      text-align: center;
+      position: relative;
+      z-index: 10;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+    .file-input {
+      display: none;
+    }
+    .upload-label {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      background-color: #4CAF50;
+      color: white;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: transform 0.3s ease, background-color 0.3s ease;
+    }
+    .upload-label:hover {
+      transform: scale(1.1);
+      background-color: #45a049;
+    }
+    .output-log {
+      margin-top: 1rem;
+      white-space: pre-wrap;
+      background: #eee;
+      padding: 1rem;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      position: relative;
+      z-index: 10;
+    }
+    /* Rocket and Stars Animation */
+    .scene {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #151515;
+      z-index: 2;
+      display: none;
+    }
+    .scene.active {
+      display: flex;
+    }
+    .rocket {
+      position: relative;
+      animation: animate 0.2s ease infinite;
+    }
+    .rocket::after {
+      content: "";
       position: absolute;
-      top: -20px;
-      right: 0;
-      font-size: 12px;
-      color: #333;
+      bottom: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 10px;
+      height: 200px;
+      background: linear-gradient(#00d0ff, transparent);
     }
-    .upload-files-container h1 {
-  font: bold 40px Arial, sans-serif; /* Example of full font declaration */
-}
-
-
+    .scene i {
+      position: absolute;
+      top: -200px;
+      background-color: rgba(255, 255, 255, 0.5);
+      animation: animateStars linear infinite;
+    }
+    @keyframes animate {
+      0% {
+        transform: translateY(2px);
+      }
+      100% {
+        transform: translateY(-2px);
+      }
+    }
+    @keyframes animateStars {
+      0% {
+        transform: translateY(0);
+      }
+      100% {
+        transform: translateY(200vh);
+      }
+    }
+    /* Success Animation */
+    .success-animation {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 3rem;
+      color: #4CAF50;
+      text-align: center;
+      animation: popIn 0.5s ease-out, fadeOut 2s 1s forwards;
+      z-index: 1000;
+      display: none;
+    }
+    @keyframes popIn {
+      0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+      100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    }
+    @keyframes fadeOut {
+      0% { opacity: 1; }
+      100% { opacity: 0; }
+    }
   </style>
 </head>
 <body>
-  <form class="form-container" enctype="multipart/form-data">
-    <div class="upload-files-container">
-      <h1>Jupiter Allocation</h1>
-      <div class="drag-file-area">
-        <div class="container">
-          <span class="material-icons-outlined upload-icon">file_upload</span>
-        </div>
-
-        <!--<h3 class="dynamic-message">Drag & drop any file here</h3> -->
-        <label class="label">
-          <span class="browse-files"> 
-            <input type="file" class="default-file-input" accept=".xlsx"/> 
-            <div><span class="browse-files-text">Browse file</span> from device
-          </span> </div>
-        </label>
+  <header>
+    <h1>Jupiter Allocation</h1>
+  </header>
+  <main>
+    <div class="scene" id="processingScene">
+      <div class="rocket">
+        <img src="https://i.postimg.cc/QtdPrSsD/rocket.png" alt="Rocket">
       </div>
-      <div class="file-block">
-        <div class="file-info"> 
-          <span class="material-icons-outlined file-icon">description</span> 
-          <span class="file-name"> </span> | 
-          <span class="file-size"> </span> 
-        </div>
-        <span class="material-icons remove-file-icon">delete</span>
-        <div class="progress-bar"></div>
-      </div>
-      <button type="button" class="upload-button">Upload</button>
-      <div id="loading-bar">
-        <div class="progress"></div>
-        <span id="loading-percentage">0%</span>
-      </div>
-      <p id="status"></p>
     </div>
-  </form>
+    <section class="upload-section">
+      <input type="file" id="inputFile" class="file-input" accept=".xlsx, .xls" />
+      <label for="inputFile" class="upload-label">
+        <span class="material-icons-outlined">upload_file</span> Upload Excel File
+      </label>
+      <div id="log" class="output-log"></div>
+    </section>
+    <div id="successAnimation" class="success-animation">✅ Success!</div>
+  </main>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script>
-    const fileInput = document.querySelector(".default-file-input");
-    const fileName = document.querySelector(".file-name");
-    const fileSize = document.querySelector(".file-size");
-    const uploadedFile = document.querySelector(".file-block");
-    const progressBar = document.querySelector(".progress");
-    const uploadBtn = document.querySelector(".upload-button");
-    const statusEl = document.getElementById("status");
-    const loadingBar = document.getElementById("loading-bar");
-    const loadingPercentage = document.getElementById("loading-percentage");
-    let fileData = null;
-
-    fileInput.addEventListener("change", () => {
-      const file = fileInput.files[0];
-      if (!file) return;
-      fileName.textContent = file.name;
-      fileSize.textContent = (file.size / 1024).toFixed(1) + " KB";
-      uploadedFile.style.display = "flex";
-      progressBar.style.width = "0px";
-      loadingPercentage.textContent = "0%";
-      const reader = new FileReader();
-      reader.onload = e => fileData = e.target.result;
-      reader.readAsArrayBuffer(file);
-    });
-
-    document.querySelector(".remove-file-icon").addEventListener("click", () => {
-      uploadedFile.style.display = "none";
-      fileInput.value = '';
-      fileData = null;
-      uploadBtn.classList.remove("uploaded-button");
-      uploadBtn.textContent = "Upload";
-      uploadBtn.disabled = false;
-      statusEl.textContent = '';
-      loadingBar.style.display = "none";
-      loadingPercentage.textContent = "0%";
-    });
-
-    uploadBtn.addEventListener("click", () => {
-      if (!fileData) return alert("Please choose a file first!");
-      loadingBar.style.display = "block";
-      let width = 0;
-      const interval = setInterval(() => {
-        if (width >= 100) {
-          clearInterval(interval);
-          uploadBtn.textContent = "Processing...";
-          convertFile();
-        } else {
-          width += 1;
-          progressBar.style.width = `${width}%`;
-          loadingPercentage.textContent = `${width}%`;
-        }
-      }, 15);
-    });
-
-    function parseDate(dateStr) {
-      let date;
-      const ddMMyyyyFormat = /^\d{2}-\d{2}-\d{4}$/;
-      if (ddMMyyyyFormat.test(dateStr)) {
-        const parts = dateStr.split('-');
-        date = new Date(`${parts[1]}/${parts[0]}/${parts[2]}`);
-      } else {
-        date = new Date(dateStr);
-      }
-      return isNaN(date) ? null : date;
+    function formatDate(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      return `${year}${month}${day}_${hours}${minutes}${seconds}`;
     }
 
-    function normalizeDate(date) {
-      return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    function parseDateFromCell(value) {
+      if (!value) return null;
+      if (typeof value === 'number') {
+        const dateParts = XLSX.SSF.parse_date_code(value);
+        if (!dateParts) return null;
+        return new Date(dateParts.y, dateParts.m - 1, dateParts.d, dateParts.H || 0, dateParts.M || 0, dateParts.S || 0);
+      }
+      if (typeof value === 'string') {
+        try {
+          const date = new Date(value);
+          if (!isNaN(date.getTime())) return date;
+        } catch (e) {
+          return null;
+        }
+      }
+      return null;
     }
 
     function getWorkingDays(start, end) {
-      let count = 0, cur = new Date(start);
-      while (cur <= end) {
-        const day = cur.getDay();
-        if (day !== 0 && day !== 6) count++;
-        cur.setDate(cur.getDate() + 1);
+      let startCal = new Date(start);
+      let endCal = new Date(end);
+      let workDays = 0;
+      while (startCal <= endCal) {
+        const day = startCal.getDay();
+        if (day !== 0 && day !== 6) {
+          workDays++;
+        }
+        startCal.setDate(startCal.getDate() + 1);
       }
-      return count;
+      return Math.max(workDays - 1, 0);
     }
 
     function getAgingLabel(days) {
@@ -257,95 +211,232 @@
       return "Above 5 days";
     }
 
-    function convertFile() {
-      try {
-        const workbook = XLSX.read(new Uint8Array(fileData), { type: 'array' });
-        const sheet = workbook.Sheets['Sheet2'];
-        const valuesSheet = workbook.Sheets['Values'];
-        const inputData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-        const valuesData = XLSX.utils.sheet_to_json(valuesSheet, { defval: '' });
+    function normalizeDate(date) {
+      const cal = new Date(date);
+      cal.setHours(0, 0, 0, 0);
+      return cal;
+    }
 
-        const ownerMap = {};
-        valuesData.forEach(row => {
-          if (row['Cora Status'] && row['Owner']) {
-            ownerMap[row['Cora Status'].trim()] = row['Owner'].trim();
-          }
-        });
-
-        const headers = ['Country', 'AP Ref #', 'Input Source', 'Current State', 'Work Type',
-          'Exception Reason', 'Document Type', 'Currency', 'Invoice No', 'Supplier Name',
-          'Supplier Number', 'PO Number', 'Invoice: Created Date', 'Current Owner',
-          'Previous State', 'Comment History', 'Company Code', 'Current State Assign Date',
-          'Invoice Due Date', 'Created date aging', 'Created date aging AH',
-          'Current State assigned date', 'Current state assigned date aging AH',
-          'Overdue/Neardue', 'Inflow Type', 'Total Amount', 'Converted Invoice Total Amount',
-          'AMT in MN','Bulk Request Document Type', 'Ownership', 'Status'];
-
-        const output = [headers];
-
-        inputData.forEach(row => {
-          const outRow = [];
-          const invDate = parseDate(row['Invoice: Created Date']);
-          const assignDate = parseDate(row['Current State Assign Date']);
-          const dueDate = parseDate(row['Invoice Due Date']);
-          headers.forEach(header => {
-            let val = '';
-            if (header === 'AP Ref #') val = row['Invoice: AP Ref No'] || '';
-            else if (header === 'PO Number') val = row['OCR PO Number'] || '';
-            else if (header === 'Created date aging') val = invDate ? Math.floor((Date.now() - invDate.getTime()) / (1000 * 60 * 60 * 24)) : '';
-            else if (header === 'Created date aging AH') val = invDate ? getAgingLabel(Math.floor((Date.now() - invDate.getTime()) / (1000 * 60 * 60 * 24))) : '';
-            else if (header === 'Current State assigned date') val = assignDate ? getWorkingDays(assignDate, new Date()) : '';
-            //else if (header === 'Current State assigned date') val = assignDate ? getWorkingDays(assignDate, new Date())-1 : '';
-            else if (header === 'Current state assigned date aging AH') val = assignDate ? getAgingLabel(getWorkingDays(assignDate, new Date())) : '';
-            else if (header === 'Overdue/Neardue') {
-              if (!dueDate) val = 'Due date not captured';
-              else {
-                const today = normalizeDate(new Date());
-                const friday = new Date(today); friday.setDate(today.getDate() + ((5 - today.getDay() + 7) % 7));
-                const nextSaturday = new Date(friday); nextSaturday.setDate(friday.getDate() + 8);
-                dueDate.setHours(0, 0, 0, 0);
-                val = dueDate <= friday ? 'Overdue' : dueDate <= nextSaturday ? 'Neardue' : 'Future due';
-              }
-            } else if (header === 'AMT in MN') val = Math.round((parseFloat(row['Converted Invoice Total Amount'] || 0) / 1e6) * 10000) / 10000;
-            else if (header === 'Ownership') val = ownerMap[row['Current State']] || '';
-            else if (header === 'Status') {
-              const comment = row['Comment History'] || '';
-              const state = row['Current State'] || '';
-              const owner = ownerMap[state] || '';
-              if (comment.includes('Payment feed received')) val = 'Payment feed received but Mandatory field data missing - Need to close the workflow in CORA';
-              else if (owner.toLowerCase() !== 'genpact') val = '-';
-              else if (['Awaiting Credit Note', 'Pending For Supplier Credit Note', 'Pending Response From Supplier'].includes(state)) val = 'Awaiting credit note from the supplier';
-              else val = 'Ready for TL Validation';
-            } else if (header === 'Inflow Type') {
-              const aging = invDate ? Math.floor((Date.now() - invDate.getTime()) / (1000 * 60 * 60 * 24)) : null;
-              const assignDays = assignDate ? getWorkingDays(assignDate, new Date()) : null;
-              if (aging !== null) val = aging <= 1 ? 'Fresh' : assignDays <= 1 ? 'Comeback Fresh' : 'Comeback Backlog';
-            } else val = row[header] || '';
-            outRow.push(val);
-          });
-          output.push(outRow);
-        });
-
-        const newSheet = XLSX.utils.aoa_to_sheet(output);
-        const newBook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(newBook, newSheet, 'AllocationTracker');
-
-        const now = new Date();
-        const pad = n => n.toString().padStart(2, '0');
-        const fileName = `Processed_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.xlsx`;
-
-        XLSX.writeFile(newBook, fileName);
-
-        statusEl.textContent = "✅ File processed and downloaded.";
-        uploadBtn.textContent = "Uploaded";
-        uploadBtn.classList.add("uploaded-button");
-        uploadBtn.disabled = true;
-        loadingBar.style.display = "none";
-      } catch (err) {
-        statusEl.textContent = "❌ Error: " + err.message;
-        loadingBar.style.display = "none";
+    function stars() {
+      let scene = document.querySelector(".scene");
+      let count = 20;
+      for (let i = 0; i <= count; i++) {
+        let star = document.createElement("i");
+        let x = Math.floor(Math.random() * window.innerWidth);
+        let duration = Math.random() * 1 + 0.5;
+        let h = Math.random() * 100;
+        star.style.left = x + "px";
+        star.style.width = 1 + "px";
+        star.style.height = h + "px";
+        star.style.animationDuration = duration + "s";
+        scene.appendChild(star);
       }
     }
+
+    async function processExcel(file) {
+      const logDiv = document.getElementById('log');
+      const successAnimation = document.getElementById('successAnimation');
+      const processingScene = document.getElementById('processingScene');
+      logDiv.textContent = 'Processing file...\n';
+      processingScene.classList.add('active');
+      stars(); // Initialize star animation
+
+      const desiredHeaders = [
+        "Country", "AP Ref #", "Input Source", "Current State", "Work Type",
+        "Exception Reason", "Document Type", "Currency", "Invoice No", "Supplier Name",
+        "Supplier Number", "PO Number", "Invoice: Created Date", "Current Owner",
+        "Previous State", "Comment History", "Company Code", "Current State Assign Date", "Invoice Due Date",
+        "Created date aging", "Created date aging AH", "Current State assigned date",
+        "Current state assigned date aging AH", "Overdue/Neardue", "Inflow Type",
+        "Total Amount", "Converted Invoice Total Amount", "AMT in MN", "Ownership", "Status"
+      ];
+
+      try {
+        // Read the uploaded file
+        const reader = new FileReader();
+        const fileData = await new Promise((resolve) => {
+  reader.onload = (e) => resolve(new Uint8Array(e.target.result));
+  reader.readAsArrayBuffer(file);
+});
+
+        const workbook = XLSX.read(fileData, { type: 'array' });
+        const inputSheet = workbook.Sheets[workbook.SheetNames[0]];
+
+        const headerRow = XLSX.utils.sheet_to_json(inputSheet, { header: 1 })[0];
+        const inputHeaderMap = {};
+        headerRow.forEach((header, index) => {
+          inputHeaderMap[header.trim()] = index;
+        });
+
+        const valuesSheet = workbook.Sheets['Values'];
+        const coraStatusToOwner = {};
+        if (valuesSheet) {
+          const valuesData = XLSX.utils.sheet_to_json(valuesSheet, { header: 1 });
+          const valHeaderRow = valuesData[0];
+          const valHeaderMap = {};
+          valHeaderRow.forEach((header, index) => {
+            valHeaderMap[header.trim()] = index;
+          });
+          const coraStatusCol = valHeaderMap['Cora Status'];
+          const ownerCol = valHeaderMap['Owner'];
+          if (coraStatusCol !== undefined && ownerCol !== undefined) {
+            for (let r = 1; r < valuesData.length; r++) {
+              const row = valuesData[r];
+              if (!row) continue;
+              const coraStatus = row[coraStatusCol]?.toString().trim();
+              const owner = row[ownerCol]?.toString().trim();
+              if (coraStatus && owner) {
+                coraStatusToOwner[coraStatus] = owner;
+              }
+            }
+          }
+        }
+
+        const outputSheetData = [desiredHeaders];
+        const inputData = XLSX.utils.sheet_to_json(inputSheet, { header: 1 }).slice(1);
+
+        inputData.forEach((inputRow) => {
+          if (!inputRow) return;
+          const outputRow = new Array(desiredHeaders.length).fill(null);
+
+          desiredHeaders.forEach((header, j) => {
+            const inputHeaderKey = header === "AP Ref #" ? "Invoice: AP Ref No" :
+                                  header === "PO Number" ? "OCR PO Number" : header;
+
+            const invoiceDate = parseDateFromCell(inputRow[inputHeaderMap["Invoice: Created Date"]]);
+            const assignDate = parseDateFromCell(inputRow[inputHeaderMap["Current State Assign Date"]]);
+
+            if (header === "Created date aging" && invoiceDate) {
+              const diffDays = Math.floor((new Date() - invoiceDate) / (1000 * 60 * 60 * 24));
+              outputRow[j] = diffDays;
+              return;
+            }
+            if (header === "Created date aging AH" && invoiceDate) {
+              const diffDays = Math.floor((new Date() - invoiceDate) / (1000 * 60 * 60 * 24));
+              outputRow[j] = getAgingLabel(diffDays);
+              return;
+            }
+            if (header === "Current State assigned date" && assignDate) {
+              outputRow[j] = getWorkingDays(assignDate, new Date());
+              return;
+            }
+            if (header === "Current state assigned date aging AH" && assignDate) {
+              const workingDays = getWorkingDays(assignDate, new Date());
+              outputRow[j] = getAgingLabel(workingDays);
+              return;
+            }
+            if (header === "Overdue/Neardue") {
+              const dueDate = parseDateFromCell(inputRow[inputHeaderMap["Invoice Due Date"]]);
+              if (!dueDate) {
+                outputRow[j] = "Due date not captured";
+              } else {
+                const today = normalizeDate(new Date());
+                const cal = new Date(today);
+                const day = cal.getDay();
+                const daysToFriday = 5 - day < 0 ? 5 - day + 7 : 5 - day;
+                cal.setDate(cal.getDate() + daysToFriday);
+                const thisFriday = normalizeDate(cal);
+                cal.setDate(cal.getDate() + 8);
+                const nextSaturday = normalizeDate(cal);
+                const normalizedDueDate = normalizeDate(dueDate);
+
+                if (normalizedDueDate <= thisFriday) {
+                  outputRow[j] = "Overdue";
+                } else if (normalizedDueDate <= nextSaturday) {
+                  outputRow[j] = "Neardue";
+                } else {
+                  outputRow[j] = "Future due";
+                }
+              }
+              return;
+            }
+            if (header === "AMT in MN") {
+              const amt = inputRow[inputHeaderMap["Converted Invoice Total Amount"]];
+              const value = typeof amt === 'number' ? amt : parseFloat(amt) || 0;
+              outputRow[j] = Math.round((value / 1000000.0) * 10000.0) / 10000.0;
+              return;
+            }
+            if (header === "Ownership") {
+              const currentState = inputRow[inputHeaderMap["Current State"]]?.toString().trim() || "";
+              outputRow[j] = coraStatusToOwner[currentState] || "";
+              return;
+            }
+            if (header === "Status") {
+              const currentState = inputRow[inputHeaderMap["Current State"]]?.toString().trim() || "";
+              const commentHistory = inputRow[inputHeaderMap["Comment History"]]?.toString().trim() || "";
+              const owner = coraStatusToOwner[currentState] || "";
+
+              if (commentHistory.includes("Payment feed received")) {
+                outputRow[j] = "Payment feed received but Mandatory field data missing - Need to close the workflow in CORA";
+              } else if (owner.toLowerCase() !== "genpact") {
+                outputRow[j] = "-";
+              } else if (["Awaiting Credit Note", "Pending For Supplier Credit Note", "Pending Response From Supplier"].includes(currentState)) {
+                outputRow[j] = "Awaiting credit note from the supplier";
+              } else {
+                outputRow[j] = "Ready for TL Validation";
+              }
+              return;
+            }
+            if (header === "Inflow Type") {
+              let inflowType = "";
+              const createdAging = invoiceDate ? Math.floor((new Date() - invoiceDate) / (1000 * 60 * 60 * 24)) : null;
+              const assignWorkingDays = assignDate ? getWorkingDays(assignDate, new Date()) : null;
+              if (createdAging !== null) {
+                if (createdAging <= 1) inflowType = "Fresh";
+                else if (createdAging > 1 && assignWorkingDays !== null) {
+                  inflowType = assignWorkingDays <= 1 ? "Comeback Fresh" : "Comeback Backlog";
+                }
+              }
+              outputRow[j] = inflowType;
+              return;
+            }
+
+            const colIndex = inputHeaderMap[inputHeaderKey];
+            if (colIndex !== undefined) {
+              outputRow[j] = inputRow[colIndex] ?? null;
+            }
+          });
+
+          outputSheetData.push(outputRow);
+        });
+
+        const outputWorkbook = XLSX.utils.book_new();
+        const outputSheet = XLSX.utils.aoa_to_sheet(outputSheetData);
+        XLSX.utils.book_append_sheet(outputWorkbook, outputSheet, "AllocationTracker");
+
+        // Generate downloadable file
+        const timestamp = formatDate(new Date());
+        const outputFileName = `Processed_File_${timestamp}.xlsx`;
+        const wbout = XLSX.write(outputWorkbook, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([wbout], { type: 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = outputFileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        // Hide processing animation and show success animation
+        processingScene.classList.remove('active');
+        successAnimation.style.display = 'block';
+        setTimeout(() => {
+          successAnimation.style.display = 'none';
+        }, 2500); // Hide after animation completes
+        logDiv.textContent += `✅ Output file generated: ${outputFileName}\n`;
+      } catch (err) {
+        processingScene.classList.remove('active');
+        logDiv.textContent += `❌ Error: ${err.message}\n`;
+      }
+    }
+
+    document.getElementById('inputFile').addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        processExcel(file);
+      }
+    });
   </script>
 </body>
 </html>
