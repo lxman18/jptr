@@ -231,7 +231,7 @@
       if (day !== 0 && day !== 6) workDays++;
       startCal.setDate(startCal.getDate() + 1);
     }
-    return Math.max(workDays - 1, 0);
+    return workDays;
   }
 
   function getAgingLabel(days) {
