@@ -151,7 +151,7 @@
 </head>
 <body>
   <header>
-    <h1>Jupiter Allocation</h1>
+    <h1>Jupiter Allocation Application</h1>
   </header>
   <main>
     <div class="scene" id="processingScene">
@@ -186,15 +186,15 @@
 
   function parseDateFromCell(value) {
     if (!value) return null;
-    
+
+    let parsedDate = null;
+
     if (typeof value === 'number') {
       const dateParts = XLSX.SSF.parse_date_code(value);
       if (dateParts) {
-        return new Date(dateParts.y, dateParts.m - 1, dateParts.d, dateParts.H || 0, dateParts.M || 0, dateParts.S || 0);
+        parsedDate = new Date(dateParts.y, dateParts.m - 1, dateParts.d);
       }
-    }
-    
-    if (typeof value === 'string') {
+    } else if (typeof value === 'string') {
       const formats = [
         'YYYY-MM-DD',
         'MM/DD/YYYY',
@@ -208,18 +208,22 @@
       ];
       for (let format of formats) {
         const parsed = new Date(value.replace(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/, '$3-$1-$2'));
-        if (!isNaN(parsed.getTime())) return parsed;
+        if (!isNaN(parsed.getTime())) {
+          parsedDate = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+          break;
+        }
       }
-      
-      const directParsed = new Date(value);
-      if (!isNaN(directParsed.getTime())) return directParsed;
+      if (!parsedDate) {
+        const directParsed = new Date(value);
+        if (!isNaN(directParsed.getTime())) {
+          parsedDate = new Date(directParsed.getFullYear(), directParsed.getMonth(), directParsed.getDate());
+        }
+      }
+    } else if (value instanceof Date && !isNaN(value.getTime())) {
+      parsedDate = new Date(value.getFullYear(), value.getMonth(), value.getDate());
     }
-    
-    if (value instanceof Date && !isNaN(value.getTime())) {
-      return value;
-    }
-    
-    return null;
+
+    return parsedDate;
   }
 
   function getWorkingDays(start, end) {
