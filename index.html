@@ -186,15 +186,17 @@
 
   function parseDateFromCell(value) {
     if (!value) return null;
-
-    let parsedDate = null;
-
+    
+    // Handle Excel serial number dates
     if (typeof value === 'number') {
       const dateParts = XLSX.SSF.parse_date_code(value);
       if (dateParts) {
-        parsedDate = new Date(dateParts.y, dateParts.m - 1, dateParts.d);
+        return new Date(dateParts.y, dateParts.m - 1, dateParts.d);
       }
-    } else if (typeof value === 'string') {
+    }
+    
+    // Handle string dates with multiple formats
+    if (typeof value === 'string') {
       const formats = [
         'YYYY-MM-DD',
         'MM/DD/YYYY',
@@ -209,33 +211,43 @@
       for (let format of formats) {
         const parsed = new Date(value.replace(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/, '$3-$1-$2'));
         if (!isNaN(parsed.getTime())) {
-          parsedDate = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
-          break;
+          parsed.setHours(0, 0, 0, 0);
+          return parsed;
         }
       }
-      if (!parsedDate) {
-        const directParsed = new Date(value);
-        if (!isNaN(directParsed.getTime())) {
-          parsedDate = new Date(directParsed.getFullYear(), directParsed.getMonth(), directParsed.getDate());
-        }
+      
+      // Try direct parsing as a fallback
+      const directParsed = new Date(value);
+      if (!isNaN(directParsed.getTime())) {
+        directParsed.setHours(0, 0, 0, 0);
+        return directParsed;
       }
-    } else if (value instanceof Date && !isNaN(value.getTime())) {
-      parsedDate = new Date(value.getFullYear(), value.getMonth(), value.getDate());
     }
-
-    return parsedDate;
+    
+    // Handle Date objects (if cellDates: true)
+    if (value instanceof Date && !isNaN(value.getTime())) {
+      value.setHours(0, 0, 0, 0);
+      return value;
+    }
+    
+    return null;
   }
 
   function getWorkingDays(start, end) {
     let startCal = new Date(start);
     let endCal = new Date(end);
+    
+    // Normalize dates to remove time component
+    startCal.setHours(0, 0, 0, 0);
+    endCal.setHours(0, 0, 0, 0);
+    
     let workDays = 0;
-    while (startCal < endCal) {
+    while (startCal <= endCal) {
       const day = startCal.getDay();
       if (day !== 0 && day !== 6) workDays++;
       startCal.setDate(startCal.getDate() + 1);
     }
-    return workDays;
+    return Math.max(workDays - 1, 0);
   }
 
   function getAgingLabel(days) {
@@ -290,10 +302,11 @@
       "Country", "AP Ref #", "Input Source", "Current State", "Work Type",
       "Exception Reason", "Document Type", "Currency", "Invoice No", "Supplier Name",
       "Supplier Number", "PO Number", "Invoice: Created Date", "Current Owner",
-      "Previous State", "Comment History", "Company Code", "Current State Assign Date", "Invoice Due Date",
-      "Created date aging", "Created date aging AH", "Current State assigned date",
-      "Current state assigned date aging AH", "Overdue/Neardue", "Inflow Type",
-      "Total Amount", "Converted Invoice Total Amount", "AMT in MN", "Ownership", "Status"
+      "Previous State", "Comment History", "Company Code", "Current State Assign Date",
+      "Invoice Due Date", "Created date aging", "Created date aging AH",
+      "Current State assigned date", "Current state assigned date aging AH",
+      "Overdue/Neardue", "Inflow Type", "Total Amount", "Converted Invoice Total Amount",
+      "AMT in MN", "Ownership", "Status"
     ];
 
     try {
@@ -306,12 +319,14 @@
       const workbook = XLSX.read(fileData, { type: 'binary', raw: true, cellDates: true });
       const inputSheet = workbook.Sheets[workbook.SheetNames[0]];
 
+      // Log headers for debugging
       const headerRow = XLSX.utils.sheet_to_json(inputSheet, { header: 1 })[0];
       const inputHeaderMap = {};
       headerRow.forEach((header, index) => {
         if (header) inputHeaderMap[header.trim()] = index;
       });
 
+      // Check if Invoice: Created Date exists
       if (!inputHeaderMap["Invoice: Created Date"]) {
         logDiv.textContent += '❌ Error: "Invoice: Created Date" column not found in input file.\n';
         throw new Error("Invoice: Created Date column missing");
@@ -375,17 +390,13 @@
               return;
             }
             if (header === "Current State assigned date" && assignDate) {
-              const normalizedAssignDate = normalizeDate(assignDate);
-              const normalizedToday = normalizeDate(new Date());
-              // Temporary logging to debug date values
-              console.log(`Row ${i + 2}: normalizedAssignDate = ${normalizedAssignDate}, normalizedToday = ${normalizedToday}`);
-              outputRow[header] = getWorkingDays(normalizedAssignDate, normalizedToday);
+              const today = normalizeDate(new Date());
+              outputRow[header] = getWorkingDays(assignDate, today);
               return;
             }
             if (header === "Current state assigned date aging AH" && assignDate) {
-              const normalizedAssignDate = normalizeDate(assignDate);
-              const normalizedToday = normalizeDate(new Date());
-              outputRow[header] = getAgingLabel(getWorkingDays(normalizedAssignDate, normalizedToday));
+              const today = normalizeDate(new Date());
+              outputRow[header] = getAgingLabel(getWorkingDays(assignDate, today));
               return;
             }
             if (header === "Overdue/Neardue") {
@@ -437,7 +448,7 @@
             if (header === "Inflow Type") {
               let inflowType = "";
               const createdAging = invoiceDate ? Math.floor((new Date() - invoiceDate) / (1000 * 60 * 60 * 24)) : null;
-              const assignWorkingDays = assignDate ? getWorkingDays(normalizeDate(assignDate), normalizeDate(new Date())) : null;
+              const assignWorkingDays = assignDate ? getWorkingDays(assignDate, normalizeDate(new Date())) : null;
               if (createdAging !== null) {
                 if (createdAging <= 1) inflowType = "Fresh";
                 else if (createdAging > 1 && assignWorkingDays !== null) {
@@ -451,6 +462,7 @@
             const colIndex = inputHeaderMap[inputHeaderKey];
             outputRow[header] = colIndex !== undefined ? inputRow[colIndex] ?? null : null;
 
+            // Debug date parsing issues
             if (header === "Invoice: Created Date" && outputRow[header]) {
               const parsedDate = parseDateFromCell(outputRow[header]);
               if (!parsedDate) {
