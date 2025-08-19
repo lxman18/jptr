@@ -151,7 +151,7 @@
 </head>
 <body>
   <header>
-    <h1>Jupiter Allocation Application</h1>
+    <h1>Jupiter Allocation</h1>
   </header>
   <main>
     <div class="scene" id="processingScene">
@@ -230,7 +230,7 @@
     let startCal = new Date(start);
     let endCal = new Date(end);
     let workDays = 0;
-    while (startCal <= endCal) {
+    while (startCal < endCal) {
       const day = startCal.getDay();
       if (day !== 0 && day !== 6) workDays++;
       startCal.setDate(startCal.getDate() + 1);
@@ -377,6 +377,8 @@
             if (header === "Current State assigned date" && assignDate) {
               const normalizedAssignDate = normalizeDate(assignDate);
               const normalizedToday = normalizeDate(new Date());
+              // Temporary logging to debug date values
+              console.log(`Row ${i + 2}: normalizedAssignDate = ${normalizedAssignDate}, normalizedToday = ${normalizedToday}`);
               outputRow[header] = getWorkingDays(normalizedAssignDate, normalizedToday);
               return;
             }
