@@ -286,7 +286,7 @@
     const progressContainer = document.querySelector('.progress-container');
     const progressBar = document.getElementById('progressBar');
 
-    if (file.size > 20 * 1024 * 1024) {
+    if (file.size > 30 * 1024 * 1024) {
       logDiv.textContent = '❌ File size exceeds 20 MB limit. Please use a smaller file.\n';
       return;
     }
